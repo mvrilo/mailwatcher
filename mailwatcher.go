@@ -33,7 +33,7 @@ func New(user, pwd, addr string) (*Mail, error) {
 		Pass:    pwd,
 		Address: addr,
 		Mailbox: "INBOX",
-		num:     1,
+		num:     0,
 	}
 	return m.Start()
 }
