@@ -13,10 +13,9 @@ func main() {
 	}
 
 	println("[#] Waiting...\n")
-	g.WatchFunc(1, func(email mail.Message) {
+	g.WatchFunc(2, func(email mail.Message) {
 		println("[+] got new mail!")
 		print("from: ", string(email.Header.Get("from")), "\n")
 		print("subject: ", string(email.Header.Get("subject")), "\n")
-		print("body: ", string(email.Body)+"\n")
 	})
 }
