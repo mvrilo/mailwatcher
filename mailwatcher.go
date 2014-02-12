@@ -19,7 +19,8 @@ type Mail struct {
 	User    string
 	Pass    string
 	Address string
-	Num     uint32
+	Mailbox string
+	num     uint32
 	lastUID uint32
 	client  *imap.Client
 	cmd     *imap.Command
@@ -31,7 +32,8 @@ func New(user, pwd, addr string) (*Mail, error) {
 		User:    user,
 		Pass:    pwd,
 		Address: addr,
-		Num:     1,
+		Mailbox: "INBOX",
+		num:     1,
 	}
 	return m.Start()
 }
@@ -60,13 +62,9 @@ func (g *Mail) login() (*imap.Command, error) {
 	return g.client.Login(g.User, g.Pass)
 }
 
-// Fetch the latest email by passing as argument the mailbox and a filter (e.g. "UNSEEN") to be searched
-func (m *Mail) Fetch(mailbox, filter string) (err error) {
-	if mailbox == "" {
-		mailbox = "INBOX"
-	}
-
-	if m.cmd, err = imap.Wait(m.client.Select(mailbox, false)); err != nil {
+// Fetch the latest email using the field Mailbox and an argument for a filter (e.g. "UNSEEN") to be searched
+func (m *Mail) Fetch(filter string) (err error) {
+	if m.cmd, err = imap.Wait(m.client.Select(m.Mailbox, false)); err != nil {
 		return
 	}
 
@@ -77,7 +75,7 @@ func (m *Mail) Fetch(mailbox, filter string) (err error) {
 	}
 
 	set, _ := imap.NewSeqSet("")
-	set.AddNum(m.client.Mailbox.Messages - m.Num)
+	set.AddNum(m.client.Mailbox.Messages - m.num)
 	if m.cmd, err = imap.Wait(m.client.Fetch(set, "RFC822.HEADER", "UID", "BODY[1]")); err != nil {
 		return
 	}
@@ -114,12 +112,19 @@ func (m *Mail) Messages() (msg []Message) {
 func (m *Mail) Watch(incoming chan Message, timer time.Duration) {
 	ticker := time.NewTicker(time.Second * timer)
 	for _ = range ticker.C {
-		m.Fetch("INBOX", "UNSEEN")
+		m.Fetch("UNSEEN")
 		msgs := m.Messages()
 		if len(msgs) == 0 {
 			continue
 		}
-		if msg := msgs[0]; m.lastUID != uint32(0) && m.lastUID != msg.UID {
+
+		msg := msgs[0]
+		if m.lastUID == uint32(0) {
+			m.lastUID = msg.UID
+			continue
+		}
+
+		if m.lastUID != msg.UID {
 			m.lastUID = msg.UID
 			incoming <- msg
 		}
