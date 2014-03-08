@@ -20,10 +20,10 @@ type Mail struct {
 	Pass    string
 	Address string
 	Mailbox string
-	num     uint32
 	lastUID uint32
-	client  *imap.Client
+	num     uint32
 	cmd     *imap.Command
+	client  *imap.Client
 }
 
 // Initialize new Mail
@@ -62,6 +62,18 @@ func (g *Mail) login() (*imap.Command, error) {
 	return g.client.Login(g.User, g.Pass)
 }
 
+/*
+BODY types:
+0 | text
+1 | multipart
+2 | message
+3 | application
+4 | audio
+5 | image
+6 | video
+7 | other
+*/
+
 // Fetch the latest email using the field Mailbox and an argument for a filter (e.g. "UNSEEN") to be searched
 func (m *Mail) Fetch(filter string) (err error) {
 	if m.cmd, err = imap.Wait(m.client.Select(m.Mailbox, false)); err != nil {
@@ -76,7 +88,7 @@ func (m *Mail) Fetch(filter string) (err error) {
 
 	set, _ := imap.NewSeqSet("")
 	set.AddNum(m.client.Mailbox.Messages - m.num)
-	if m.cmd, err = imap.Wait(m.client.Fetch(set, "RFC822.HEADER", "UID", "BODY[1]")); err != nil {
+	if m.cmd, err = imap.Wait(m.client.Fetch(set, "RFC822.HEADER", "UID", "BODY[0]")); err != nil {
 		return
 	}
 	return
@@ -84,7 +96,7 @@ func (m *Mail) Fetch(filter string) (err error) {
 
 func (m *Mail) parseResponse(rsp *imap.Response) (uint32, []byte, *mail.Message, error) {
 	info := rsp.MessageInfo()
-	body := imap.AsBytes(info.Attrs["BODY[1]"])
+	body := imap.AsBytes(info.Attrs["BODY[0]"])
 	header := bytes.NewReader(imap.AsBytes(info.Attrs["RFC822.HEADER"]))
 	hdr, err := mail.ReadMessage(header)
 	if err != nil {
